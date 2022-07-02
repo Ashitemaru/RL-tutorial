@@ -15,9 +15,11 @@ from maze import Maze
 from qlearning import QLearningTable
 
 def update():
-    for _ in range(100):
+    for epoch in range(100):
         # Initial state
         state = env.reset()
+
+        print(f"Start epoch: {epoch}")
 
         while True:
             # Refresh the canvas
