@@ -2,7 +2,9 @@
 
 我怎么现在才开始看强化学习.jpg
 
-总之这里是一些强化学习的参考代码，然后我的笔记挂在我的 Github Pages 上面，导航：https://ashitemaru.github.io/2022/06/30/note-of-rl/。
+总之这里是一些强化学习的参考代码，然后我的笔记挂在我的 Github Pages 上面，导航：
+
+[Reinforce learning notes](https://ashitemaru.github.io/2022/06/30/note-of-rl/)
 
 ## Updates
 
