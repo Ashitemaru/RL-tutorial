@@ -64,61 +64,61 @@ class DeepQNetwork:
             tf.summary.FileWriter("logs/", self.session.graph)
 
         self.session.run(tf.global_variables_initializer())
-        self.cost_history = []
+        self.loss_history = []
 
     def _build_net(self):
         # Inputs
+        # The first dimension stands for batch_size
         self.state = tf.placeholder(tf.float32, [None, self.n_features], name = "state")
         self.next_state = tf.placeholder(tf.float32, [None, self.n_features], name = "next_state")
-        self.reward = tf.placeholder(tf.float32, [None, ], name = "reward")
-        self.action = tf.placeholder(tf.int32, [None, ], name = "action")
+        self.reward = tf.placeholder(tf.float32, [None], name = "reward")
+        self.action = tf.placeholder(tf.int32, [None], name = "action")
 
         w_initializer = tf.random_normal_initializer(0., 0.3)
         b_initializer = tf.constant_initializer(0.1)
 
         # Evaluate network
         with tf.variable_scope("eval_net"):
-            eval_layer1 = tf.layers.dense(
-                inputs = self.state,
+            eval_layer = tf.keras.layers.Dense(
                 units = 20,
                 activation = tf.nn.relu,
                 kernel_initializer = w_initializer,
                 bias_initializer = b_initializer,
-                name = "eval_layer1"
-            )
-            self.q_eval = tf.layers.dense(
-                inputs = eval_layer1,
+                name = "eval_layer"
+            )(self.state) # Output: (None, 20)
+            self.q_eval = tf.keras.layers.Dense(
                 units = self.n_actions,
                 kernel_initializer = w_initializer,
                 bias_initializer = b_initializer,
-                name = "q_eval"
-            )
+                name = "q_eval_layer"
+            )(eval_layer) # Output: (None, n_actions)
 
         # Target network
         with tf.variable_scope("target_net"):
-            target_layer1 = tf.layers.dense(
-                inputs = self.next_state,
+            target_layer = tf.keras.layers.Dense(
                 units = 20,
                 activation = tf.nn.relu,
                 kernel_initializer = w_initializer,
                 bias_initializer = b_initializer,
-                name = "target_layer1"
-            )
-            self.q_next = tf.layers.dense(
-                inputs = target_layer1,
+                name = "target_layer"
+            )(self.next_state) # Output: (None, 20)
+            self.q_next = tf.keras.layers.Dense(
                 units = self.n_actions,
                 kernel_initializer = w_initializer,
                 bias_initializer = b_initializer,
-                name = "q_next"
-            )
+                name = "q_next_layer"
+            )(target_layer) # Output: (None, n_actions)
 
         with tf.variable_scope("q_target"):
             q_target = self.reward + self.gamma * tf.reduce_max(self.q_next, axis = 1, name = "q_max_next_state")
-            self.q_target = tf.stop_gradient(q_target)
+            self.q_target = tf.stop_gradient(q_target) # Shape: (None, )
 
         with tf.variable_scope("q_eval"):
-            action_indices = tf.stack([tf.range(tf.shape(self.action)[0], dtype = tf.int32), self.action], axis = 1)
-            self.q_eval_wrt_action = tf.gather_nd(params = self.q_eval, indices = action_indices)
+            action_indices = tf.stack([
+                tf.range(tf.shape(self.action)[0], dtype = tf.int32), # Index
+                self.action # The index of action
+            ], axis = 1)
+            self.q_eval_wrt_action = tf.gather_nd(params = self.q_eval, indices = action_indices) # Shape: (None, )
 
         with tf.variable_scope("loss"):
             self.loss = tf.reduce_mean(tf.squared_difference(
@@ -165,7 +165,7 @@ class DeepQNetwork:
             sample_index = np.random.choice(self.memory_counter, size = self.batch_size)
         batch_memory = self.memory[sample_index, :]
 
-        _, cost = self.session.run(
+        _, loss = self.session.run(
             [self._train_op, self.loss],
             feed_dict = {
                 self.state: batch_memory[:, : self.n_features],
@@ -174,7 +174,7 @@ class DeepQNetwork:
                 self.next_state: batch_memory[:, -self.n_features: ],
             })
 
-        self.cost_history.append(cost)
+        self.loss_history.append(loss)
 
         # Increasing epsilon
         self.epsilon = self.epsilon + self.epsilon_increment \
@@ -184,7 +184,8 @@ class DeepQNetwork:
 
     def plot_cost(self):
         import matplotlib.pyplot as plt
-        plt.plot(np.arange(len(self.cost_history)), self.cost_history)
-        plt.ylabel("Cost")
+
+        plt.plot(np.arange(len(self.loss_history)), self.loss_history)
+        plt.ylabel("Loss")
         plt.xlabel("Training steps")
         plt.show()
